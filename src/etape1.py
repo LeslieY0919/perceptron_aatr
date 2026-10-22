@@ -35,6 +35,36 @@ def taux_erreur_bruit(poids, biais, copies, classe, p):
     return 100 * erreurs / essais
 
 
+def taux_reconnaissance(poids, biais, copies, p):
+    """Bonnes réponses (%) sur les copies des DEUX chiffres au niveau de bruit p.
+
+    Taux = 100 × nombre de bonnes réponses / nombre d'essais. Poids figés.
+    """
+    essais = 0
+    bonnes = 0
+    for classe, niveau, pixels in copies:
+        if niveau == p:
+            essais = essais + 1
+            if decider(calculer_score(poids, biais, pixels)) == classe:
+                bonnes = bonnes + 1
+    return 100 * bonnes / essais
+
+
+def taux_toujours_zero(copies, p):
+    """Même mesure pour un classifieur qui répond toujours 0, sans rien apprendre.
+
+    Sert de point de comparaison (fiche, étape 1, question 4 : prévoir avant de lancer).
+    """
+    essais = 0
+    bonnes = 0
+    for classe, niveau, pixels in copies:
+        if niveau == p:
+            essais = essais + 1
+            if classe == 0:   # il répond 0 : il a raison seulement sur les zéros
+                bonnes = bonnes + 1
+    return 100 * bonnes / essais
+
+
 def tracer_figure(erreurs_par_epoque, taux, chemin):
     """Figure à deux panneaux : erreurs selon l'époque ; taux d'erreur selon le bruit."""
     try:
@@ -100,6 +130,16 @@ def main():
         print(f"  {p:5d} | {nombre_pixels_a_inverser(p):15d} | "
               f"{taux[(0, p)]:14.1f} % | {taux[(1, p)]:14.1f} %")
 
+    # Comparaison : notre neurone face à un classifieur « toujours 0 »
+    reconnaissance = []
+    print()
+    print("  p (%) | reconnaissance du neurone | classifieur « toujours 0 »")
+    for p in NIVEAUX_BRUIT:
+        neurone = taux_reconnaissance(poids, biais, copies, p)
+        constant = taux_toujours_zero(copies, p)
+        reconnaissance.append([p, 2 * NB_COPIES, neurone, constant])
+        print(f"  {p:5d} | {neurone:23.1f} % | {constant:24.1f} %")
+
     # Résultats à conserver
     print()
     lignes = []
@@ -114,6 +154,9 @@ def main():
     ecrire_csv("resultats/etape1_bruit.csv",
                ["chiffre", "bruit_pourcent", "pixels_inverses", "essais", "taux_erreur_pourcent"],
                lignes)
+    ecrire_csv("resultats/etape1_reconnaissance.csv",
+               ["bruit_pourcent", "essais", "reconnaissance_neurone_pourcent",
+                "reconnaissance_toujours_0_pourcent"], reconnaissance)
 
     lignes = []
     for classe, p, pixels in copies:
